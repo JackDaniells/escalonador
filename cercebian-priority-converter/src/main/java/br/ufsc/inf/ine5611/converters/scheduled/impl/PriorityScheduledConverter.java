@@ -4,8 +4,8 @@ import br.ufsc.inf.ine5611.converters.Converter;
 import br.ufsc.inf.ine5611.converters.scheduled.ConverterTask;
 import br.ufsc.inf.ine5611.converters.scheduled.Priority;
 import br.ufsc.inf.ine5611.converters.scheduled.ScheduledConverter;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
+import br.ufsc.inf.ine5611.converters.scheduled.impl.ScheduledConverterTask;
+
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,26 +19,48 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     public static final int DEFAULT_QUANTUM_LOW = 50;
     public static final int DEFAULT_QUANTUM_NORMAL = 100;
     public static final int DEFAULT_QUANTUM_HIGH = 200;
+    
+    //fila de tarefas
+    List<ScheduledConverterTask> queueTasksHighPriority;
+    List<ScheduledConverterTask> queueTasksNormalPriority;
+    List<ScheduledConverterTask> queueTasksLowPriority;
+    
+    //hashmap para os quantum
+    Map<Priority,Integer> priorityQuantum = new HashMap<>();
+    
+    //converter
+    Converter converter;
+    
+    //
 
     public PriorityScheduledConverter(Converter converter) {
         //TODO implementar
         /* - Salve converter como um field, para uso posterior
            - Registre um listener em converter.addCompletionListener() para que você saiba
          *   quando uma tarefa terminou */
+        
+        //converter salvo
+        this.converter = converter;
+        
+        //listener de tarefa terminada
+        converter.addCompletionListener((t) -> {
+        });
+        
     }
 
     @Override
     public void setQuantum(Priority priority, int milliseconds) {
         /* Dica: use um HasMap<Priority, Integer> para manter os quanta configurados para
          * cada prioridade */
-        //TODO implementar
+       
+        priorityQuantum.put(priority, milliseconds);
     }
 
     @Override
     public int getQuantum(Priority priority) {
         /* Veja setQuantum */
-        //TODO implementar
-        return 0;
+
+        return priorityQuantum.get(priority);
     }
 
     @Override
@@ -51,9 +73,33 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     @Override
     public synchronized ConverterTask convert(InputStream inputStream, OutputStream outputStream,
                                 String mediaType, long inputBytes, Priority priority) {
-        /* - Crie um objeto ScheduledConverterTask utilizando os parâmetros dessa chamada
-         * - Adicione o objeto em alguma fila (é possível implementar com uma ou várias filas)
-         * - Se a nova tarefa for mais prioritária que a atualmente executando, interrompa */
+        
+        
+        long epoch = 0;
+        // - Crie um objeto ScheduledConverterTask utilizando os parâmetros dessa chamada
+        ScheduledConverterTask task = 
+                new ScheduledConverterTask(inputStream, outputStream, mediaType, null, inputBytes, priority, epoch );
+    
+         // - Adicione o objeto em alguma fila (é possível implementar com uma ou várias filas)
+         // - Se a nova tarefa for mais prioritária que a atualmente executando, interrompa 
+         
+         switch(priority){
+            case HIGH:
+                queueTasksHighPriority.add(task);
+            break;
+            
+            case NORMAL:
+                queueTasksNormalPriority.add(task);
+            break;
+            
+            case LOW:
+                queueTasksLowPriority.add(task);
+            break;
+                 
+            
+         }
+         
+         
         //TODO implementar
         return null;
     }
@@ -68,6 +114,7 @@ public class PriorityScheduledConverter implements ScheduledConverter {
          * }
          */
         //TODO implementar
+     
     }
 
     @Override
@@ -75,6 +122,6 @@ public class PriorityScheduledConverter implements ScheduledConverter {
         /* - Libere quaisquer recursos alocados
          * - Cancele as tarefas não concluídas
          */
-        //TODO implementar
+        converter.interrupt();
     }
 }
