@@ -84,6 +84,7 @@ public class PriorityScheduledConverter implements ScheduledConverter {
          // - Se a nova tarefa for mais prioritária que a atualmente executando, interrompa 
          
          switch(priority){
+             
             case HIGH:
                 queueTasksHighPriority.add(task);
             break;
