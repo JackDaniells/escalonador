@@ -38,6 +38,8 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     
     //posicao da ultima task de prioridade media executada
     private int lastMediumPriorityTaskExecuted = -1;
+    
+    private Priority priorityTaskExecuting; 
   
     public PriorityScheduledConverter(Converter converter) {
         //TODO implementar
@@ -109,7 +111,7 @@ public class PriorityScheduledConverter implements ScheduledConverter {
             break;          
         } 
         
-         for(ScheduledConverterTask item : queueTasksHighPriority ){
+         /*for(ScheduledConverterTask item : queueTasksHighPriority ){
             if(task.getPriority().compareTo(item.getPriority()) > 0){
                 this.converter.interrupt();
             }
@@ -125,7 +127,12 @@ public class PriorityScheduledConverter implements ScheduledConverter {
             if(task.getPriority().compareTo(item.getPriority()) > 0){
                 this.converter.interrupt();
             }
-        }
+        }*/
+         
+         if(task.getPriority().compareTo(priorityTaskExecuting)> 0){
+             
+             this.converter.interrupt();
+         }
 
         return task;
     }
@@ -194,6 +201,7 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     
     
     private ScheduledConverterTask changeTaskHighPriority(){
+        priorityTaskExecuting = Priority.HIGH;
         return queueTasksHighPriority.get(0);
     }
     
@@ -205,12 +213,20 @@ public class PriorityScheduledConverter implements ScheduledConverter {
         if(lastMediumPriorityTaskExecuted < 0){
             
             if(lastMediumPriorityTaskExecuted < queueTasksNormalPriority.size()){
+                
+                priorityTaskExecuting = Priority.NORMAL;
                 return queueTasksNormalPriority.get(lastMediumPriorityTaskExecuted);
+                
             }else {
-               return  changeTaskLowPriority();
+                
+                priorityTaskExecuting = Priority.NORMAL;
+                return queueTasksNormalPriority.get(0); 
+               
             }
             
         }else{
+            
+            priorityTaskExecuting = Priority.NORMAL;
             return queueTasksNormalPriority.get(0); 
         }
     }
@@ -227,6 +243,7 @@ public class PriorityScheduledConverter implements ScheduledConverter {
             }
         }
         
+        priorityTaskExecuting = Priority.LOW;
         return queueTasksLowPriority.get(lowerSizePosition);
     }
 }
