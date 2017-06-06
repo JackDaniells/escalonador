@@ -30,9 +30,7 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     
     //converter
     Converter converter;
-    
-    //
-
+  
     public PriorityScheduledConverter(Converter converter) {
         //TODO implementar
         /* - Salve converter como um field, para uso posterior
@@ -43,23 +41,29 @@ public class PriorityScheduledConverter implements ScheduledConverter {
         this.converter = converter;
         
         //listener de tarefa terminada
-        converter.addCompletionListener((t) -> {
+        converter.addCompletionListener((ConverterTask t) -> {
+            cancelTask(t);
         });
         
+    }
+    
+    private void cancelTask(ConverterTask t){
+        converter.interrupt();
+        if(queueTasksHighPriority.remove(t)||queueTasksNormalPriority.remove(t)||queueTasksLowPriority.remove(t)){
+            System.out.println("task removida");
+        }
     }
 
     @Override
     public void setQuantum(Priority priority, int milliseconds) {
         /* Dica: use um HasMap<Priority, Integer> para manter os quanta configurados para
          * cada prioridade */
-       
         priorityQuantum.put(priority, milliseconds);
     }
 
     @Override
     public int getQuantum(Priority priority) {
         /* Veja setQuantum */
-
         return priorityQuantum.get(priority);
     }
 
@@ -67,7 +71,12 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     public Collection<ConverterTask> getAllTasks() {
         /* Junte todas as tarefas não completas em um Collection */
         //TODO implementar
-        return null;
+        Collection<ConverterTask> collection = null;
+        collection.addAll(queueTasksHighPriority);
+        collection.addAll(queueTasksNormalPriority);
+        collection.addAll(queueTasksLowPriority);
+        
+        return collection;
     }
 
     @Override
@@ -83,22 +92,23 @@ public class PriorityScheduledConverter implements ScheduledConverter {
          // - Adicione o objeto em alguma fila (é possível implementar com uma ou várias filas)
          // - Se a nova tarefa for mais prioritária que a atualmente executando, interrompa 
          
-         switch(priority){
-             
+        switch(priority){     
             case HIGH:
                 queueTasksHighPriority.add(task);
+               
             break;
             
             case NORMAL:
                 queueTasksNormalPriority.add(task);
+                
             break;
             
             case LOW:
                 queueTasksLowPriority.add(task);
+                
             break;
                  
-            
-         }
+        }
          
          
         //TODO implementar
@@ -114,8 +124,6 @@ public class PriorityScheduledConverter implements ScheduledConverter {
          *   this.converter.processFor(getQuantum(t.getPriority(), MILLISECONDS);
          * }
          */
-        //TODO implementar
-     
     }
 
     @Override
