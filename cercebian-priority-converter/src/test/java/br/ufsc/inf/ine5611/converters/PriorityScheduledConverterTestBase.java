@@ -4,6 +4,7 @@ import br.ufsc.inf.ine5611.converters.impl.PayWallConverter;
 import br.ufsc.inf.ine5611.converters.scheduled.ConverterTask;
 import br.ufsc.inf.ine5611.converters.scheduled.Priority;
 import br.ufsc.inf.ine5611.converters.scheduled.impl.PriorityScheduledConverter;
+import com.google.common.base.Stopwatch;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -27,6 +28,15 @@ public abstract class PriorityScheduledConverterTestBase {
     protected List<ConverterTask> tasks;
     protected ExecutorService executorService;
     protected HashMap<Priority, Integer> quantumMs;
+
+    protected void sleep(int milliseconds) throws InterruptedException {
+        if (System.getProperty("os.name").toLowerCase().startsWith("win")) {
+            Stopwatch w = Stopwatch.createStarted();
+            while (w.elapsed(TimeUnit.MILLISECONDS) < milliseconds) { }
+        } else {
+            Thread.sleep(milliseconds);
+        }
+    }
 
     protected void setup(int processingDelay) {
         visibleConverter = new VisibleConverter(PayWallConverter.newBuilder()

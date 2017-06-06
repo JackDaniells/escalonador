@@ -15,10 +15,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PayWallConverter extends AbstractConverter implements Converter {
     private TaskData current = null;
@@ -26,6 +26,7 @@ public class PayWallConverter extends AbstractConverter implements Converter {
     private double  processingDelayFactor = 0;
     private int workingSetSize = Integer.MAX_VALUE;
     private Map<ConverterTask, TaskData> activeTasks = new HashMap<>();
+    private AtomicBoolean windowsInterruptFlag = new AtomicBoolean(false);
 
 
     protected PayWallConverter(int processingDelay, double processingDelayFactor,
@@ -57,9 +58,7 @@ public class PayWallConverter extends AbstractConverter implements Converter {
         return did;
     }
 
-    @Override
-    public synchronized void processFor(ConverterTask task, long time, TimeUnit timeUnit)
-            throws IOException, InterruptedException {
+    private synchronized TaskData beginProcessFor(ConverterTask task, long time, TimeUnit timeUnit) throws IOException {
         Preconditions.checkNotNull(task);
         Preconditions.checkState(current == null, "Concurrent call to processFor()!");
         Preconditions.checkArgument(!task.isDone(), "Cannot process a done task");
@@ -68,7 +67,26 @@ public class PayWallConverter extends AbstractConverter implements Converter {
         processingListeners.forEach(l -> l.accept(task));
         TaskData taskData = !activeTasks.containsKey(task) ? setup(task) : activeTasks.get(task);
         current = taskData;
+        return taskData;
+    }
 
+    private synchronized void endProcessFor(ConverterTask task, TaskData taskData) {
+        if (taskData.processingLeft <= 0) {
+            completionListeners.forEach(l -> l.accept(task));
+            activeTasks.remove(task);
+            current = null;
+        }
+        current = null;
+    }
+
+    private synchronized void doWait(long milliseconds) throws InterruptedException {
+        wait(milliseconds);
+    }
+
+    @Override
+    public void processFor(ConverterTask task, long time, TimeUnit timeUnit)
+            throws IOException, InterruptedException {
+        TaskData taskData = beginProcessFor(task, time, timeUnit);
         long maxMs = TimeUnit.MILLISECONDS.convert(time, timeUnit);
         long taskMs = Math.min(current.processingLeft, maxMs);
         Stopwatch w = Stopwatch.createStarted();
@@ -76,16 +94,19 @@ public class PayWallConverter extends AbstractConverter implements Converter {
             while (current != null && current.processingLeft > 0
                     && w.elapsed(TimeUnit.MILLISECONDS) < maxMs) {
                 Stopwatch w2 = Stopwatch.createStarted();
-                wait(taskMs);
+                if (System.getProperty("os.name").toLowerCase().startsWith("win")) {
+                    while (w2.elapsed(TimeUnit.MILLISECONDS) < taskMs) {
+                        if (windowsInterruptFlag.compareAndSet(true, false)) {
+                            break;
+                        }
+                    }
+                } else {
+                    doWait(taskMs);
+                }
                 taskData.processingLeft -= w2.elapsed(TimeUnit.MILLISECONDS);
             }
-            if (taskData.processingLeft <= 0) {
-                completionListeners.forEach(l -> l.accept(task));
-                activeTasks.remove(task);
-                current = null;
-            }
         } finally {
-            current = null;
+            endProcessFor(task, taskData);
         }
     }
 
@@ -94,6 +115,7 @@ public class PayWallConverter extends AbstractConverter implements Converter {
         if (current == null) return false;
         interruptListeners.forEach(l -> l.accept(current.task));
         current = null;
+        windowsInterruptFlag.set(true);
         notifyAll();
         return true;
     }

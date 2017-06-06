@@ -42,14 +42,14 @@ public class PriorityScheduledConverter implements ScheduledConverter {
         
         //listener de tarefa terminada
         converter.addCompletionListener((ConverterTask t) -> {
-            cancelTask(t);
+            this.cancelTask(t);
         });
         
     }
     
     private void cancelTask(ConverterTask t){
-        converter.interrupt();
-        if(queueTasksHighPriority.remove(t)||queueTasksNormalPriority.remove(t)||queueTasksLowPriority.remove(t)){
+        this.converter.interrupt();
+        if(this.queueTasksHighPriority.remove(t)||this.queueTasksNormalPriority.remove(t)||this.queueTasksLowPriority.remove(t)){
             System.out.println("task removida");
         }
     }
@@ -58,13 +58,13 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     public void setQuantum(Priority priority, int milliseconds) {
         /* Dica: use um HasMap<Priority, Integer> para manter os quanta configurados para
          * cada prioridade */
-        priorityQuantum.put(priority, milliseconds);
+        this.priorityQuantum.put(priority, milliseconds);
     }
 
     @Override
     public int getQuantum(Priority priority) {
         /* Veja setQuantum */
-        return priorityQuantum.get(priority);
+        return this.priorityQuantum.get(priority);
     }
 
     @Override
@@ -124,6 +124,7 @@ public class PriorityScheduledConverter implements ScheduledConverter {
          *   this.converter.processFor(getQuantum(t.getPriority(), MILLISECONDS);
          * }
          */
+        this.converter.
     }
 
     @Override
@@ -131,6 +132,6 @@ public class PriorityScheduledConverter implements ScheduledConverter {
         /* - Libere quaisquer recursos alocados
          * - Cancele as tarefas não concluídas
          */
-        converter.interrupt();
+        this.converter.interrupt();
     }
 }
