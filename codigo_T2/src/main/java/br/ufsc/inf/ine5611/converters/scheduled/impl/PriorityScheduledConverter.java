@@ -62,7 +62,9 @@ public class PriorityScheduledConverter implements ScheduledConverter {
         
         //listener de tarefa terminada
         this.converter.addCompletionListener((t) -> {
-            priorityQueue.remove(t);
+            ScheduledConverterTask sct = (ScheduledConverterTask) t;
+            sct.complete(null);
+            priorityQueue.remove(sct);
         });
         
         //inicializa o ChangeTask
@@ -94,7 +96,10 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     public Collection<ConverterTask> getAllTasks() {
        
         Collection<ConverterTask> collection = new ArrayList<>();
-        collection.addAll(priorityQueue);
+       // collection.addAll(priorityQueue);
+       for (ConverterTask task: priorityQueue) {
+                collection.add(task);
+        }
         
         return collection;
     }
@@ -136,10 +141,6 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     @Override
     public void processFor(long interval, TimeUnit timeUnit) throws InterruptedException {
     
-        /*int a = 0;
-        long maxMs = TimeUnit.MILLISECONDS.convert(interval, timeUnit);
-        Stopwatch w = Stopwatch.createStarted();
-         while (w.elapsed(TimeUnit.MILLISECONDS) < maxMs) {*/
         long timeBase = stopwatch.elapsed(timeUnit);
         while(stopwatch.elapsed(timeUnit) - timeBase < interval ) {
             
