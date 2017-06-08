@@ -177,8 +177,8 @@ public class PriorityScheduledConverterTest extends PriorityScheduledConverterTe
         Assert.assertEquals(actual.subList(0, expected.size()), expected);
 
         if (actual.size() == expected.size()+3)
-            expected.add(new ConverterTaskEvent(PROCESS, tasks.get(0)));
         expected.add(new ConverterTaskEvent(PROCESS, tasks.get(0)));
+        //expected.add(new ConverterTaskEvent(PROCESS, tasks.get(0)));
         expected.add(new ConverterTaskEvent(COMPLETION, tasks.get(0)));
 
         Assert.assertEquals(actual, expected);
