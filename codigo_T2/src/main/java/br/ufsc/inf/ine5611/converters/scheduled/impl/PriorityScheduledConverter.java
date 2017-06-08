@@ -4,32 +4,23 @@ import br.ufsc.inf.ine5611.converters.Converter;
 import br.ufsc.inf.ine5611.converters.scheduled.ConverterTask;
 import br.ufsc.inf.ine5611.converters.scheduled.Priority;
 import br.ufsc.inf.ine5611.converters.scheduled.ScheduledConverter;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
-import java.util.PriorityQueue;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.*;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import java.util.function.Consumer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 public class PriorityScheduledConverter implements ScheduledConverter {
     public static final int DEFAULT_QUANTUM_LOW = 50;
     public static final int DEFAULT_QUANTUM_NORMAL = 100;
     public static final int DEFAULT_QUANTUM_HIGH = 200;
     
-    
     //relogio
-    private Stopwatch stopwatch;
+    private final Stopwatch stopwatch;
     
     //hashmap para os quantum
-    private HashMap<Priority, Integer> priorityQuantum;
+    private final HashMap<Priority, Integer> priorityQuantum;
     
     //fila de prioridades
     private PriorityBlockingQueue<ScheduledConverterTask> priorityQueue;
@@ -41,7 +32,10 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     private final Converter converter;
     
     //selecionador de tasks
-    private ChangeTask changeTask;
+    private final ChangeTask changeTask;
+    
+    //idade da tarefa
+    private long epoch = 0;
     
     /***************************************************************************/
     public PriorityScheduledConverter(Converter converter) {
@@ -62,9 +56,9 @@ public class PriorityScheduledConverter implements ScheduledConverter {
         
         //listener de tarefa terminada
         this.converter.addCompletionListener((t) -> {
-            ScheduledConverterTask sct = (ScheduledConverterTask) t;
-            sct.complete(null);
-            priorityQueue.remove(sct);
+            priorityQueue.remove(t);
+            ScheduledConverterTask task = (ScheduledConverterTask) t;
+            task.complete(null);
         });
         
         //inicializa o ChangeTask
@@ -96,10 +90,7 @@ public class PriorityScheduledConverter implements ScheduledConverter {
     public Collection<ConverterTask> getAllTasks() {
        
         Collection<ConverterTask> collection = new ArrayList<>();
-       // collection.addAll(priorityQueue);
-       for (ConverterTask task: priorityQueue) {
-                collection.add(task);
-        }
+        collection.addAll(priorityQueue);
         
         return collection;
     }
@@ -111,30 +102,26 @@ public class PriorityScheduledConverter implements ScheduledConverter {
 
         
         //define o epoch como o tempo atual no relogio
-        long epoch = stopwatch.elapsed(MILLISECONDS);
+        //long epoch = stopwatch.elapsed(MILLISECONDS);
         
         //cria a nova task
         ScheduledConverterTask newTask = new ScheduledConverterTask(
                 inputStream, 
                 outputStream, 
                 mediaType, 
-                (t) -> { cancelTask(t); },
+                (t) -> { cancel(t); },
                 inputBytes, 
                 priority, 
-                epoch
+                epoch++
         );
         
         //adiciona a task na fila
         priorityQueue.add(newTask);
         
         //se for mais prioritaria que a task rodando atualmente, cancela
-        if(currentTask != null) {
-            if (priority.compareTo(currentTask.getPriority()) == 1)
-                interrupt();
-        } 
+        if(currentTask != null && priority.compareTo(currentTask.getPriority()) == 1) interrupt();
         
-        return newTask;
-        
+        return newTask;     
     }
 
     /***************************************************************************/
@@ -150,7 +137,8 @@ public class PriorityScheduledConverter implements ScheduledConverter {
              priorityQueue.add(task);
              
             try {
-                this.converter.processFor(task, getQuantum(task.getPriority()), timeUnit);
+                if (!task.isDone()) 
+                    this.converter.processFor(task, getQuantum(task.getPriority()), timeUnit);
                 
             } catch (IOException ex) {
                 
@@ -169,27 +157,26 @@ public class PriorityScheduledConverter implements ScheduledConverter {
             if(task.isDone()){
                 task.close();
             }
-            cancelTask(task);
+            cancel(task);
         }
     }
        
     /***************************************************************************/
-    public boolean cancelTask(ConverterTask task) {
+    public void cancel(ConverterTask task) {
         
         //cancelar task especifica
-        if (task == currentTask) converter.interrupt();
+        priorityQueue.remove(task);
         converter.cancel(task); 
-        return priorityQueue.remove(task);
+        if (task == currentTask) converter.interrupt();
     }
     
     /***************************************************************************/
-    public synchronized boolean interrupt() {
+    public synchronized void interrupt() {
         
         //interromper operaçao
-        if (currentTask == null) return false;
         currentTask = null;
         this.converter.interrupt();
-        return true;
+       
     }
    
 }
